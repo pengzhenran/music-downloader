@@ -1,31 +1,27 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!-- WinExe = 独立窗口应用，不弹控制台 -->
+    <!-- WinExe = 独立窗口应用，不弹控制台；界面用纯 Win32 + WebView2 Core（不用 WinForms） -->
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
-    <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>音乐下载器</AssemblyName>
     <RootNamespace>MusicDownloader</RootNamespace>
     <ApplicationIcon>app.ico</ApplicationIcon>
-    <Version>1.2.0</Version>
+    <Version>1.3.0</Version>
     <Product>音乐下载器</Product>
-    <Description>网易云音乐无损下载工具（独立窗口版）</Description>
+    <Description>网易云音乐无损下载工具（独立窗口 · 原生宿主）</Description>
 
-    <!-- 单文件 self-contained；WinForms 不支持裁剪，故关闭 PublishTrimmed -->
+    <!-- 单文件 self-contained；不用 WinForms 后可继续裁剪 -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
-    <PublishTrimmed>false</PublishTrimmed>
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>full</TrimMode>
     <InvariantGlobalization>true</InvariantGlobalization>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
-    <!--
-      关键：把原生库（WebView2Loader.dll、D3DCompiler_47_cor3.dll 等）也嵌入 exe。
-      否则单文件版会缺少 WebView2 的原生加载器，界面无法初始化，
-      必须连同 9 个 dll 一起分发。开启后首次启动会解压到临时目录，之后秒开。
-    -->
+    <!-- 原生库（WebView2Loader.dll 等）嵌入 exe，实现真正单文件分发 -->
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <DebugType>none</DebugType>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>

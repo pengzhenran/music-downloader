@@ -258,6 +258,30 @@ public sealed class NeteaseClient
         return (albumName, pic, songs);
     }
 
+    /// <summary>账号检测结果。</summary>
+    public sealed record AccountInfo(bool Valid, string Nickname, long UserId, int VipType);
+
+    /// <summary>
+    /// 检测当前 Cookie 是否真的有效：调用账号接口读取 profile。
+    /// 无效/过期的 Cookie 会返回空 profile（HTTP 仍是 200），因此必须看 profile 是否存在。
+    /// </summary>
+    public async Task<AccountInfo> GetAccountAsync(CancellationToken ct)
+    {
+        if (_cookie.Length == 0) return new AccountInfo(false, "", 0, 0);
+        var json = await PostWeapiAsync(
+            "https://music.163.com/weapi/w/nuser/account/get", "{}", ct);
+
+        if (json.TryGetProperty("profile", out var profile) && profile.ValueKind == JsonValueKind.Object)
+        {
+            return new AccountInfo(
+                true,
+                ReadString(profile, "nickname"),
+                ReadLong(profile, "userId"),
+                (int)ReadLong(profile, "vipType"));
+        }
+        return new AccountInfo(false, "", 0, 0);
+    }
+
     /// <summary>获取歌词（LRC 文本）。</summary>
     public async Task<string> GetLyricAsync(long songId, CancellationToken ct)
     {

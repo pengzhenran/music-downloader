@@ -1,11 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  裁剪保留描述：FolderPicker 使用 [ComImport] 接口调用 Windows 原生
-  「选择文件夹」对话框（IFileOpenDialog）。full-trim 会移除 COM 接口成员，
-  导致运行时报 E_FAIL，因此这里显式保留整个类型。
+  裁剪保留描述。
+
+  full-trim 会移除以下两类代码所依赖的元数据，导致运行时失败：
+    1) FolderPicker  —— SHBrowseForFolderW（结构体编组）
+    2) NativeHost    —— Win32 窗口 + WebView2 Core COM 互操作
+  因此显式保留这些类型（及其嵌套类型）。
 -->
 <linker>
   <assembly fullname="音乐下载器">
     <type fullname="MusicDownloader.FolderPicker" preserve="all" />
+    <type fullname="MusicDownloader.NativeHost" preserve="all" />
   </assembly>
+  <!-- WebView2 的托管封装大量使用 COM 互操作与反射激活 -->
+  <assembly fullname="Microsoft.Web.WebView2.Core" preserve="all" />
 </linker>

@@ -29,17 +29,18 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"无法启动本地服务（端口 {port}）：{ex.Message}", "音乐下载器",
-                MessageBoxButtons.OK, MessageBoxIcon.Error);
+            NativeHost.ShowError($"无法启动本地服务（端口 {port}）：{ex.Message}");
             return;
         }
 
-        // 后台接收 HTTP 请求（界面线程跑 WinForms 消息循环）
+        // 后台接收 HTTP 请求（界面线程跑 Win32 消息循环）
         _ = Task.Run(() => AcceptLoopAsync(listener));
 
-        Application.EnableVisualStyles();
-        Application.SetCompatibleTextRenderingDefault(false);
-        Application.Run(new MainForm(_baseUrl));
+        var userDataDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "音乐下载器", "WebView2");
+
+        NativeHost.Run(_baseUrl, userDataDir);
     }
 
     /// <summary>
@@ -230,6 +231,74 @@ internal static class Program
                     await WriteJsonAsync(ctx, 200, "{\"ok\":true}");
                 }
                 catch (Exception ex) { await WriteJsonAsync(ctx, 500, $"{{\"error\":{Json.Esc(ex.Message)}}}"); }
+                return;
+            }
+
+            case "/api/about":
+            {
+                // 版本与运行环境信息，供「关于」面板展示
+                var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0";
+                var sb = new StringBuilder();
+                sb.Append('{');
+                sb.Append("\"name\":").Append(Json.Esc("音乐下载器")).Append(',');
+                sb.Append("\"version\":").Append(Json.Esc(version)).Append(',');
+                sb.Append("\"runtime\":").Append(Json.Esc(".NET 8 · 独立窗口")).Append(',');
+                sb.Append("\"hasBuiltInAccount\":").Append(Secrets.BuiltInCookie.Length > 0 ? "true" : "false").Append(',');
+                sb.Append("\"repo\":").Append(Json.Esc("https://github.com/pengzhenran/music-downloader"));
+                sb.Append('}');
+                await WriteJsonAsync(ctx, 200, sb.ToString());
+                return;
+            }
+
+            case "/api/check-cookie":
+            {
+                // 真实校验 Cookie：读取账号 profile，而非仅判断字符串非空
+                var cookieToCheck = _config.Cookie;
+                if (ctx.Request.HttpMethod == "POST")
+                {
+                    var raw = await ReadBodyAsync(ctx);
+                    if (!string.IsNullOrWhiteSpace(raw))
+                    {
+                        using var doc = JsonDocument.Parse(raw);
+                        if (doc.RootElement.TryGetProperty("cookie", out var ck) && ck.ValueKind == JsonValueKind.String)
+                            cookieToCheck = ck.GetString() ?? "";
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(cookieToCheck))
+                {
+                    await WriteJsonAsync(ctx, 200,
+                        "{\"valid\":false,\"reason\":\"empty\",\"isVip\":false,\"message\":\"尚未填写 Cookie\"}");
+                    return;
+                }
+
+                try
+                {
+                    var client = new NeteaseClient(cookieToCheck);
+                    var info = await client.GetAccountAsync(CancellationToken.None);
+                    var isVip = info.VipType > 0;
+                    var message = info.Valid
+                        ? (isVip
+                            ? $"账号有效：{info.Nickname}（VIP 已开通）"
+                            : $"账号有效：{info.Nickname}（未开通 VIP，将无法获取无损）")
+                        : "Cookie 无效或已过期，请重新获取";
+                    var sb = new StringBuilder();
+                    sb.Append('{');
+                    sb.Append("\"valid\":").Append(info.Valid ? "true" : "false").Append(',');
+                    sb.Append("\"isVip\":").Append(isVip ? "true" : "false").Append(',');
+                    sb.Append("\"nickname\":").Append(Json.Esc(info.Nickname)).Append(',');
+                    sb.Append("\"userId\":").Append(info.UserId).Append(',');
+                    sb.Append("\"vipType\":").Append(info.VipType).Append(',');
+                    sb.Append("\"reason\":").Append(Json.Esc(info.Valid ? "ok" : "invalid")).Append(',');
+                    sb.Append("\"message\":").Append(Json.Esc(message));
+                    sb.Append('}');
+                    await WriteJsonAsync(ctx, 200, sb.ToString());
+                }
+                catch (Exception ex)
+                {
+                    await WriteJsonAsync(ctx, 200,
+                        $"{{\"valid\":false,\"isVip\":false,\"reason\":\"error\",\"message\":{Json.Esc("检测失败：" + ex.Message)}}}");
+                }
                 return;
             }
 

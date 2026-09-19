@@ -27,6 +27,8 @@
     background:var(--panel2); color:var(--dim); border:1px solid var(--line);
   }
   .badge.ok{color:var(--accent2); border-color:rgba(58,210,159,.4)}
+  .badge.warn{color:#ffc857; border-color:rgba(255,200,87,.4)}
+  .badge.bad{color:var(--danger); border-color:rgba(255,92,92,.4)}
   main{max-width:1000px; margin:0 auto; padding:22px}
   .card{
     background:var(--panel); border:1px solid var(--line);
@@ -88,6 +90,18 @@
   .loading{color:var(--dim); padding:14px 0}
   .empty{color:var(--dim); text-align:center; padding:26px 0}
   code{background:#0c0e12; padding:2px 6px; border-radius:6px; font-size:12.5px}
+  .about-row{
+    display:flex; justify-content:space-between; gap:12px;
+    padding:9px 0; border-bottom:1px solid var(--line); font-size:13px;
+  }
+  .about-row span:first-child{color:var(--dim)}
+  .about-logo{text-align:center; padding:6px 0 16px}
+  .about-logo .ico{font-size:38px; line-height:1}
+  .about-logo .nm{font-size:17px; font-weight:600; margin-top:8px}
+  .about-note{color:var(--dim); font-size:12.5px; margin-top:14px; line-height:1.75}
+  .about-warn{color:var(--danger); font-size:12.5px; margin-top:12px; line-height:1.75}
+  .about-link{color:var(--accent); text-decoration:none}
+  .about-link:hover{text-decoration:underline}
 </style>
 </head>
 <body>
@@ -97,6 +111,7 @@
   <span class="badge" id="cookieBadge">未配置 Cookie</span>
   <div class="spacer"></div>
   <button class="ghost small" id="btnOpen">打开下载目录</button>
+  <button class="ghost small" id="btnAbout">关于</button>
   <button class="ghost small" id="btnSettings">设置</button>
 </header>
 
@@ -135,6 +150,10 @@
     <div class="field">
       <label>网易云 Cookie（下载无损需要 VIP 登录态）</label>
       <textarea id="cookie" rows="4" style="width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:10px;border-radius:10px;font-size:12.5px;resize:vertical" placeholder="MUSIC_U=xxxx; __csrf=xxxx; ..."></textarea>
+      <div class="flexrow" style="margin-top:9px;align-items:center">
+        <button class="ghost small" id="btnCheckCookie" style="white-space:nowrap">检测账号</button>
+        <span class="hint" id="cookieResult" style="margin:0;flex:1"></span>
+      </div>
       <div class="hint">
         获取方式：浏览器登录 <a class="albumlink" href="https://music.163.com" target="_blank">music.163.com</a> → F12 → Network → 任意请求 → Request Headers 里的 Cookie 整段复制。
       </div>
@@ -177,6 +196,34 @@
   </div>
 </div>
 
+<div class="modal" id="aboutModal">
+  <div class="box">
+    <div class="about-logo">
+      <div class="ico">🎵</div>
+      <div class="nm">音乐下载器</div>
+      <div class="hint" id="aboutVersion">读取中…</div>
+    </div>
+
+    <div class="about-row"><span>运行环境</span><span id="aboutRuntime">—</span></div>
+    <div class="about-row"><span>账号状态</span><span id="aboutAccount">—</span></div>
+    <div class="about-row"><span>下载目录</span><span id="aboutDir" style="max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span></div>
+
+    <p class="about-note">
+      用于个人收藏的网易云音乐下载工具：支持搜索歌曲与专辑、批量下载、
+      无损或 MP3 音质，并自动写入歌词、封面与完整标签。
+    </p>
+    <p class="about-warn">
+      ⚠️ 本工具仅供个人学习与备份已授权内容使用。请遵守网易云音乐用户协议与相关著作权法律，
+      勿用于传播或商业用途。
+    </p>
+
+    <div class="actions">
+      <button class="ghost" id="btnAboutRepo">项目主页</button>
+      <button id="btnAboutClose">知道了</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const $ = (id) => document.getElementById(id);
 let selected = new Set();
@@ -203,10 +250,61 @@ async function loadSettings() {
   $('naming').value = s.naming || 'track-title';
   $('quality').value = s.quality || 'lossless-fallback';
   $('embedCover').checked = !!s.embedCover;
-  const badge = $('cookieBadge');
-  if (s.hasCookie) { badge.textContent = 'VIP 已就绪'; badge.className = 'badge ok'; }
-  else { badge.textContent = '未配置 Cookie'; badge.className = 'badge'; }
+  if (s.hasCookie) {
+    // 已保存 Cookie：后台做一次真实校验，而不是直接假定可用
+    setBadge('检测中…', '');
+    checkCookie(true);
+  } else {
+    setBadge('未配置 Cookie', '');
+  }
 }
+
+function setBadge(text, cls) {
+  const b = $('cookieBadge');
+  b.textContent = text;
+  b.className = 'badge' + (cls ? ' ' + cls : '');
+}
+
+/**
+ * 真实检测 Cookie 是否有效、是否具备 VIP 权限。
+ * @param {boolean} useSaved true=检测已保存的；false=检测输入框内容并给出详细提示
+ */
+async function checkCookie(useSaved) {
+  const btn = $('btnCheckCookie');
+  const out = $('cookieResult');
+  if (!useSaved) {
+    btn.disabled = true;
+    btn.textContent = '检测中…';
+    out.textContent = '';
+    out.style.color = '';
+  }
+  try {
+    const body = useSaved ? {} : { cookie: $('cookie').value.trim() };
+    const r = await api('/api/check-cookie', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (r.valid && r.isVip) setBadge((r.nickname || '已登录') + ' · VIP', 'ok');
+    else if (r.valid) setBadge(r.nickname || '已登录', 'warn');
+    else if (r.reason === 'empty') setBadge('未配置 Cookie', '');
+    else setBadge('Cookie 无效', 'bad');
+
+    if (!useSaved) {
+      out.textContent = r.message || '';
+      out.style.color = (r.valid && r.isVip) ? 'var(--accent2)' : (r.valid ? '#ffc857' : 'var(--danger)');
+    }
+    return r;
+  } catch (e) {
+    setBadge('检测失败', 'bad');
+    if (!useSaved) { out.textContent = '检测失败：' + e.message; out.style.color = 'var(--danger)'; }
+  } finally {
+    if (!useSaved) { btn.disabled = false; btn.textContent = '检测账号'; }
+  }
+}
+
+$('btnCheckCookie').onclick = () => checkCookie(false);
 
 // 打开系统「选择文件夹」对话框
 $('btnBrowse').onclick = async () => {
@@ -239,8 +337,9 @@ $('btnSave').onclick = async () => {
       embedCover: $('embedCover').checked,
     }),
   });
-  $('modal').classList.remove('show');
-  await loadSettings();
+  // 保存后立即真实校验：有效则自动关闭，无效则留在面板里显示原因
+  const r = await checkCookie(false);
+  if (r && r.valid) setTimeout(() => $('modal').classList.remove('show'), 1000);
 };
 
 $('btnOpen').onclick = async () => {
@@ -418,6 +517,28 @@ $('btnClear').onclick = () => {
   $('taskCard').style.display = 'none';
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
 };
+
+// ---------- 关于 ----------
+$('btnAbout').onclick = async () => {
+  $('aboutVersion').textContent = '读取中…';
+  try {
+    const a = await api('/api/about');
+    $('aboutVersion').textContent = '版本 ' + a.version;
+    $('aboutRuntime').textContent = a.runtime || '—';
+    $('aboutAccount').textContent = a.hasBuiltInAccount
+      ? '已内置账号（开箱即用）'
+      : '使用自己填写的 Cookie';
+    const dir = $('outputDir').value || '—';
+    $('aboutDir').textContent = dir;
+    $('aboutDir').title = dir;
+  } catch (e) {
+    $('aboutVersion').textContent = '版本信息读取失败';
+  }
+  $('aboutModal').classList.add('show');
+};
+$('btnAboutClose').onclick = () => $('aboutModal').classList.remove('show');
+// 站外链接会被宿主拦截并交给系统浏览器打开
+$('btnAboutRepo').onclick = () => { location.href = 'https://github.com/pengzhenran/music-downloader'; };
 
 // ---------- 初始化 ----------
 loadSettings().catch(() => {});

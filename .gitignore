@@ -3,6 +3,7 @@ bin/
 obj/
 dist/
 dist2/
+dist3/
 dist-friend/
 
 # ===== 内置密钥（由 build-friend.ps1 生成，绝不提交）=====

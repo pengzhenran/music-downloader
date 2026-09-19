@@ -2,8 +2,8 @@
 
 一个**单文件、免安装**的网易云音乐下载工具，自带独立窗口界面。
 
-- **形态**：独立窗口应用（内嵌 WebView2，非浏览器标签页）
-- **体积**：约 59 MB（自包含运行时，双击即用）
+- **形态**：独立窗口应用（Win32 原生窗口 + 内嵌 WebView2）
+- **体积**：约 **11 MB**（自包含运行时，双击即用）
 - **平台**：Windows 10/11 x64
 - **依赖**：无（WebView2 运行时 Windows 10/11 自带）
 
@@ -23,11 +23,13 @@
 |---|---|
 | **搜索** | 按歌名 / 歌手 / 专辑关键词搜索 |
 | **专辑批量** | 点击结果中的**专辑名**展开整张专辑，一键全选下载 |
+| **账号检测** | 真实请求接口校验 Cookie：显示昵称、VIP 状态；伪造/过期 Cookie 会被识别为无效 |
 | **音质可调** | 无损优先（无无损自动降级 MP3）／仅无损／MP3 320k／MP3 192k |
 | **歌词** | 自动保存同名 `.lrc` |
 | **封面** | 自动下载专辑封面（800×800），并可内嵌到音频标签 |
 | **标签** | FLAC 写 Vorbis Comment，MP3 写 ID3v2.3；含 标题/艺术家/专辑/专辑艺术家/曲序/年份 |
 | **选择文件夹** | 设置里点「浏览…」调用 Windows 原生文件夹选择器 |
+| **关于面板** | 显示版本、运行环境、账号状态、下载目录与免责声明 |
 | **命名规则** | 可选 `01. 歌名`（按曲序）或 `歌手 - 歌名` |
 | **抗限流** | 请求失败自动重试（4 次递增退避）+ 曲目间间隔 |
 
@@ -103,16 +105,19 @@
 
 ## 技术说明
 
-- **.NET 8** + WinForms 承载 **WebView2**（复用系统运行时，不随包分发浏览器内核）
+- **.NET 8** + **Win32 原生窗口**（P/Invoke 建窗与消息循环）+ **WebView2 Core 接口**
+  - 刻意**不使用 WinForms**：.NET 8 禁止对 WinForms 裁剪（`NETSDK1175`），改用原生窗口后
+    得以继续 `PublishTrimmed`，体积从 59 MB 降到 **11 MB**
 - 后端是本地 `HttpListener` 服务，前端为内嵌的 HTML/JS 界面
 - **零第三方依赖**（仅 WebView2 SDK）：HTTP 用 `SocketsHttpHandler`，JSON 手工构建
 - **FLAC 标签**：自行实现 Vorbis Comment 与 PICTURE 块读写，并解析 JPEG/PNG 尺寸
 - **MP3 标签**：自行实现 ID3v2.3 帧写入（文本用 UTF-16+BOM，APIC 内嵌封面）
 - **文件夹选择**：`SHBrowseForFolderW`，**刻意避开结构体编组**——改为 `AllocHGlobal` 手工按内存布局写字段，否则裁剪后会抛 `TypeLoadException`
+- **单文件分发**：`IncludeNativeLibrariesForSelfExtract` 把 `WebView2Loader.dll` 等原生库
+  一并嵌入 exe，否则单独运行会因缺少加载器导致界面空白
 - **weapi 协议**：AES-128-CBC 双重加密 + 裸 RSA（`BigInteger.ModPow`），与网易云客户端一致
-
-> 注：WinForms 不支持 `PublishTrimmed`（.NET 限制），因此独立窗口版体积为 59 MB；
-> 若需要 11 MB 的极简版，可改用「控制台 + 系统浏览器」形态（见 git 历史 v1.1.0）。
+- **异步初始化**：自建 `SynchronizationContext` 把 await 续体投递到窗口消息队列，
+  保证 WebView2 的 COM 调用始终在创建它的 STA 线程上执行
 
 ## 从源码构建
 
