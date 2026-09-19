@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>音乐下载器</AssemblyName>
+    <RootNamespace>MusicDownloader</RootNamespace>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <Version>1.0.0</Version>
+    <Product>音乐下载器</Product>
+    <Description>网易云音乐无损下载工具（本地网页界面）</Description>
+
+    <!-- 单文件 + 裁剪，产出体积最小的绿色 exe -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>full</TrimMode>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>none</DebugType>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- 文件夹选择对话框使用 COM 互操作，需启用内置 COM 支持以配合裁剪 -->
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <!-- HttpListener 需要，防止被裁剪掉 -->
+    <NoWarn>$(NoWarn);IL2026;IL3050;IL2104;IL2050;CA1416</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="wwwroot\**\*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 保留 COM 互操作类型（文件夹选择对话框），避免 full-trim 移除接口成员 -->
+    <TrimmerRootDescriptor Include="TrimmerRoots.xml" />
+  </ItemGroup>
+
+</Project>

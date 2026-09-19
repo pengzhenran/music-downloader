@@ -1,0 +1,16 @@
+# 统一换行符，避免跨平台 diff 噪音
+* text=auto
+
+*.cs    text diff=csharp
+*.html  text
+*.md    text
+*.yml   text
+*.xml   text
+*.csproj text
+
+# 二进制文件不做换行转换
+*.ico   binary
+*.png   binary
+*.exe   binary
+*.flac  binary
+*.mp3   binary

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  裁剪保留描述：FolderPicker 使用 [ComImport] 接口调用 Windows 原生
+  「选择文件夹」对话框（IFileOpenDialog）。full-trim 会移除 COM 接口成员，
+  导致运行时报 E_FAIL，因此这里显式保留整个类型。
+-->
+<linker>
+  <assembly fullname="音乐下载器">
+    <type fullname="MusicDownloader.FolderPicker" preserve="all" />
+  </assembly>
+</linker>

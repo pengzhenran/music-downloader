@@ -1,0 +1,11 @@
+# 构建产物
+bin/
+obj/
+dist/
+
+# 图标源文件（保留 app.ico，忽略 png 源）
+app.png
+
+# 本地配置与临时文件
+*.user
+*.tmp
