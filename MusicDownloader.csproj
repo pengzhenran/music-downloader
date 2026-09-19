@@ -21,6 +21,12 @@
     <PublishTrimmed>false</PublishTrimmed>
     <InvariantGlobalization>true</InvariantGlobalization>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <!--
+      关键：把原生库（WebView2Loader.dll、D3DCompiler_47_cor3.dll 等）也嵌入 exe。
+      否则单文件版会缺少 WebView2 的原生加载器，界面无法初始化，
+      必须连同 9 个 dll 一起分发。开启后首次启动会解压到临时目录，之后秒开。
+    -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <DebugType>none</DebugType>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
