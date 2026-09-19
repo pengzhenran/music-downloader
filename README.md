@@ -61,6 +61,14 @@
 
 产物在 `dist-friend\音乐下载器.exe`，朋友双击即可用自己的账号下载。
 
+### 📤 分享时只需要发**一个 exe**
+
+原生库（`WebView2Loader.dll`、`D3DCompiler_47_cor3.dll` 等）已通过
+`IncludeNativeLibrariesForSelfExtract` 内嵌进 exe，因此**不需要附带任何其他文件**。
+
+> 实测：把 exe 单独拷到空目录运行，WebView2 正常初始化（数据目录 173 个文件）；
+> 开启此选项前，单独运行会因缺少原生加载器而导致界面空白。
+
 ### ⚠️ 分发前请务必了解风险
 
 | 事项 | 说明 |
