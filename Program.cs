@@ -40,7 +40,12 @@ internal static class Program
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "音乐下载器", "WebView2");
 
-        NativeHost.Run(_baseUrl, userDataDir);
+        // 内置账号版在窗口标题上明确标识，避免与公开版混淆
+        var windowTitle = Secrets.BuiltInCookie.Length > 0
+            ? "音乐下载器（已内置账号）"
+            : "音乐下载器";
+
+        NativeHost.Run(_baseUrl, userDataDir, windowTitle);
     }
 
     /// <summary>

@@ -14,7 +14,7 @@ namespace MusicDownloader;
 internal static class NativeHost
 {
     private const string WindowClass = "MusicDownloaderWnd";
-    private const string WindowTitle = "音乐下载器";
+    private const string DefaultWindowTitle = "音乐下载器";
 
     private const uint CS_HREDRAW = 0x0002, CS_VREDRAW = 0x0001;
     private const uint WS_OVERLAPPEDWINDOW = 0x00CF0000;
@@ -33,16 +33,18 @@ internal static class NativeHost
 
     private static IntPtr _hwnd;
     private static CoreWebView2Controller? _controller;
+    private static string _windowTitle = DefaultWindowTitle;
     private static WndProcDelegate? _wndProcRef;   // 保持委托引用，防止被 GC 回收
     private static readonly Queue<(SendOrPostCallback Callback, object? State)> PostQueue = new();
 
     /// <summary>显示一个原生错误提示框（不依赖 WinForms）。</summary>
     public static void ShowError(string message)
-        => MessageBoxW(IntPtr.Zero, message, WindowTitle, MB_ICONERROR);
+        => MessageBoxW(IntPtr.Zero, message, _windowTitle, MB_ICONERROR);
 
-    public static void Run(string url, string userDataDir)
+    public static void Run(string url, string userDataDir, string? windowTitle = null)
     {
         _wndProcRef = WndProc;
+        if (!string.IsNullOrWhiteSpace(windowTitle)) _windowTitle = windowTitle!;
         var hInstance = GetModuleHandleW(null);
 
         var wc = new WNDCLASSEXW
@@ -57,7 +59,7 @@ internal static class NativeHost
         RegisterClassExW(ref wc);
 
         _hwnd = CreateWindowExW(
-            0, WindowClass, WindowTitle, WS_OVERLAPPEDWINDOW,
+            0, WindowClass, _windowTitle, WS_OVERLAPPEDWINDOW,
             CW_USEDEFAULT, CW_USEDEFAULT, DefaultWidth, DefaultHeight,
             IntPtr.Zero, IntPtr.Zero, hInstance, IntPtr.Zero);
 
@@ -78,7 +80,7 @@ internal static class NativeHost
                 "界面初始化失败。\n\n系统可能缺少 WebView2 运行时（Windows 10/11 通常自带）。\n" +
                 "可前往 https://developer.microsoft.com/microsoft-edge/webview2/ 安装后重试。\n\n" +
                 "错误：" + initTask.Exception?.GetBaseException().Message,
-                WindowTitle, 0x10);
+                _windowTitle, 0x10);
             OpenExternal(url); // 兜底：改用系统浏览器
         }
 

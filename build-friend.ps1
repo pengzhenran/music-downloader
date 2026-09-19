@@ -84,9 +84,22 @@ try {
     $exe = Get-ChildItem (Join-Path $root $OutDir) -Filter "*.exe" | Select-Object -First 1
     if (-not $exe) { throw "未找到编译产物" }
 
-    $sizeMb = [math]::Round($exe.Length / 1MB, 2)
-    Write-Host "[4/4] 完成：$($exe.FullName) ($sizeMb MB)" -ForegroundColor Green
+    # 重命名：公开版与内置账号版默认同名（都叫「音乐下载器.exe」），
+    # 复制分发时极易拿错，这里强制加后缀区分。
+    $outDirFull = Join-Path $root $OutDir
+    $finalPath = Join-Path $outDirFull "音乐下载器-已内置账号.exe"
+    if ($exe.FullName -ne $finalPath) {
+        Move-Item -LiteralPath $exe.FullName -Destination $finalPath -Force
+    }
+    Get-ChildItem $outDirFull -Filter "*.exe" |
+        Where-Object { $_.Name -ne "音乐下载器-已内置账号.exe" } |
+        Remove-Item -Force -ErrorAction SilentlyContinue
+
+    $final = Get-Item -LiteralPath $finalPath
+    $sizeMb = [math]::Round($final.Length / 1MB, 2)
+    Write-Host "[4/4] 完成：$($final.FullName) ($sizeMb MB)" -ForegroundColor Green
     Write-Host ""
+    Write-Host "  文件名带「已内置账号」后缀，勿与公开版混淆。" -ForegroundColor Cyan
     Write-Host "提示：该 exe 内含登录态，请仅私下分享给信任的人。" -ForegroundColor Yellow
     Write-Host "      若怀疑外泄，可在网易云「设置 → 退出所有设备」使凭证失效。" -ForegroundColor Yellow
 }
