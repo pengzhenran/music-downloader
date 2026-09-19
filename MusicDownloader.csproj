@@ -1,40 +1,52 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <!-- WinExe = 独立窗口应用，不弹控制台 -->
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>音乐下载器</AssemblyName>
     <RootNamespace>MusicDownloader</RootNamespace>
     <ApplicationIcon>app.ico</ApplicationIcon>
-    <Version>1.0.0</Version>
+    <Version>1.2.0</Version>
     <Product>音乐下载器</Product>
-    <Description>网易云音乐无损下载工具（本地网页界面）</Description>
+    <Description>网易云音乐无损下载工具（独立窗口版）</Description>
 
-    <!-- 单文件 + 裁剪，产出体积最小的绿色 exe -->
+    <!-- 单文件 self-contained；WinForms 不支持裁剪，故关闭 PublishTrimmed -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
-    <PublishTrimmed>true</PublishTrimmed>
-    <TrimMode>full</TrimMode>
+    <PublishTrimmed>false</PublishTrimmed>
     <InvariantGlobalization>true</InvariantGlobalization>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <DebugType>none</DebugType>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <!-- 文件夹选择对话框使用 COM 互操作，需启用内置 COM 支持以配合裁剪 -->
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
-    <!-- HttpListener 需要，防止被裁剪掉 -->
     <NoWarn>$(NoWarn);IL2026;IL3050;IL2104;IL2050;CA1416</NoWarn>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 独立窗口内嵌浏览器控件（复用系统 WebView2 运行时，不额外打包） -->
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
+  </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="wwwroot\**\*" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- 保留 COM 互操作类型（文件夹选择对话框），避免 full-trim 移除接口成员 -->
+    <!-- 保留 COM 互操作类型（文件夹选择对话框） -->
     <TrimmerRootDescriptor Include="TrimmerRoots.xml" />
   </ItemGroup>
+
+  <!--
+    本地密钥：Secrets.Local.cs 由 build-friend.ps1 生成（已在 .gitignore 中排除）。
+    SDK 默认会编译目录下的 .cs 文件，因此这里只需在它存在时追加 LOCAL_SECRETS 常量。
+  -->
+  <PropertyGroup Condition="Exists('Secrets.Local.cs')">
+    <DefineConstants>$(DefineConstants);LOCAL_SECRETS</DefineConstants>
+  </PropertyGroup>
 
 </Project>

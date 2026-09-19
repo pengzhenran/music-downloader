@@ -13,8 +13,11 @@ internal static class Program
     private static readonly object TaskLock = new();
     private static string _baseUrl = "";
 
-    private static async Task Main()
+    [STAThread]
+    private static void Main()
     {
+        ApplyBuiltInCookie();
+
         var port = FindFreePort(18923);
         _baseUrl = $"http://127.0.0.1:{port}/";
 
@@ -26,21 +29,33 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"无法启动本地服务（端口 {port}）：{ex.Message}");
-            Console.Error.WriteLine("按任意键退出...");
-            Console.ReadKey();
+            MessageBox.Show($"无法启动本地服务（端口 {port}）：{ex.Message}", "音乐下载器",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
-        Console.OutputEncoding = Encoding.UTF8;
-        Console.WriteLine("========================================");
-        Console.WriteLine("  音乐下载器 已启动");
-        Console.WriteLine($"  界面地址：{_baseUrl}");
-        Console.WriteLine("  关闭本窗口即可退出程序");
-        Console.WriteLine("========================================");
+        // 后台接收 HTTP 请求（界面线程跑 WinForms 消息循环）
+        _ = Task.Run(() => AcceptLoopAsync(listener));
 
-        TryOpenBrowser(_baseUrl);
+        Application.EnableVisualStyles();
+        Application.SetCompatibleTextRenderingDefault(false);
+        Application.Run(new MainForm(_baseUrl));
+    }
 
+    /// <summary>
+    /// 首次运行时把编译期内置的 Cookie 写入用户配置，
+    /// 这样「设置」界面里可见、可改。源码构建的版本此值为空，不产生任何影响。
+    /// </summary>
+    private static void ApplyBuiltInCookie()
+    {
+        if (Secrets.BuiltInCookie.Length == 0) return;
+        if (_config.Cookie.Length > 0) return;
+        _config.Cookie = Secrets.BuiltInCookie;
+        _config.Save();
+    }
+
+    private static async Task AcceptLoopAsync(HttpListener listener)
+    {
         while (true)
         {
             HttpListenerContext ctx;
@@ -48,12 +63,6 @@ internal static class Program
             catch { break; }
             _ = Task.Run(() => HandleAsync(ctx));
         }
-    }
-
-    private static void TryOpenBrowser(string url)
-    {
-        try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
-        catch { /* 打不开浏览器时用户可手动访问 */ }
     }
 
     private static int FindFreePort(int start)
